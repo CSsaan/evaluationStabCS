@@ -1,0 +1,16 @@
+[project]
+name = "evaluationstabcs"
+version = "0.1.0"
+description = "Evaluation Stability of EIS"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "imutils>=0.5.4",
+    "matplotlib>=3.10.7",
+    "nuitka>=2.8.4",
+    "numpy>=2.3.4",
+    "opencv-contrib-python>=4.11.0.86",
+    "progress>=1.6.1",
+    "pyqt6>=6.10.0",
+    "tqdm>=4.67.1",
+]
