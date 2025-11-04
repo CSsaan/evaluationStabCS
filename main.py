@@ -2,7 +2,8 @@ import sys
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
-                             QFileDialog, QDoubleSpinBox, QGroupBox, QTextEdit, QMessageBox, QProgressBar)
+                             QFileDialog, QDoubleSpinBox, QGroupBox, QTextEdit, QMessageBox, QProgressBar, 
+                             QComboBox)
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -15,11 +16,11 @@ class EvaluationWorker(QThread):
     finished = pyqtSignal(object, object)  # (metrics_result, trajectory_data)
     error = pyqtSignal(str)  # 错误信息
     
-    def __init__(self, original_video_path, pred_video_path, scale_factor):
+    def __init__(self, original_video_path, pred_video_path, resolution_option):
         super().__init__()
         self.original_video_path = original_video_path
         self.pred_video_path = pred_video_path
-        self.scale_factor = scale_factor
+        self.resolution_option = resolution_option
     
     def run(self):
         try:
@@ -27,9 +28,9 @@ class EvaluationWorker(QThread):
             from src.trajectory import gen_trajectory_data
             
             # 执行评估
-            CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(self.original_video_path, self.pred_video_path, scale_factor=self.scale_factor, visualize=True)
+            CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(self.original_video_path, self.pred_video_path, resolution_option=self.resolution_option, visualize=True)
             # 生成轨迹
-            trajectory1, trajectory2 = gen_trajectory_data(self.original_video_path, self.pred_video_path, self.scale_factor)
+            trajectory1, trajectory2 = gen_trajectory_data(self.original_video_path, self.pred_video_path, self.resolution_option)
             
             # 将轨迹数据发送到主线程，让主线程负责绘图
             trajectory_data = {
@@ -78,6 +79,10 @@ class VideoStabilityUI(QMainWindow):
         return window_color.lightness() < 128
     
     def create_visualization_area(self, parent_layout):
+        # 创建可视化区域的主容器
+        visualization_widget = QWidget()
+        visualization_layout = QVBoxLayout(visualization_widget)
+        
         # 创建一个空的figure用于占位
         if self.is_dark_mode(): # 深色样式
             plt.style.use('dark_background')
@@ -86,7 +91,15 @@ class VideoStabilityUI(QMainWindow):
 
         self.figure = Figure(figsize=(8, 6))
         self.canvas = FigureCanvas(self.figure)
-        parent_layout.addWidget(self.canvas, 3)
+        visualization_layout.addWidget(self.canvas)
+        
+        # 创建保存图片按钮，放在canvas下方
+        self.save_image_btn = QPushButton("保存轨迹图")
+        self.save_image_btn.clicked.connect(self.save_trajectory_image)
+        self.save_image_btn.setEnabled(False)  # 初始禁用，只有在有图像时才启用
+        visualization_layout.addWidget(self.save_image_btn)
+        
+        parent_layout.addWidget(visualization_widget, 3)
         
     def create_control_panel(self):
         panel = QWidget()
@@ -115,12 +128,15 @@ class VideoStabilityUI(QMainWindow):
         param_layout = QVBoxLayout(param_group)
         
         scale_layout = QHBoxLayout()
-        scale_layout.addWidget(QLabel("缩放因子:"))
-        self.scale_spinbox = QDoubleSpinBox()
-        self.scale_spinbox.setRange(0.1, 2.0)
-        self.scale_spinbox.setSingleStep(0.1)
-        self.scale_spinbox.setValue(1.0)
-        scale_layout.addWidget(self.scale_spinbox)
+        scale_layout.addWidget(QLabel("处理分辨率:"))
+        self.resolution_combo = QComboBox()
+        self.resolution_combo.addItem("原生", "native")
+        self.resolution_combo.addItem("4K", "4k")
+        self.resolution_combo.addItem("1080p", "1080p")
+        self.resolution_combo.addItem("720p", "720p")
+        self.resolution_combo.addItem("480p", "480p")
+        self.resolution_combo.setCurrentIndex(0)  # 默认选择原生
+        scale_layout.addWidget(self.resolution_combo)
         param_layout.addLayout(scale_layout)
         
         # 进度条
@@ -133,12 +149,6 @@ class VideoStabilityUI(QMainWindow):
         self.run_btn.clicked.connect(self.run_evaluation)
         param_layout.addWidget(self.run_btn)
         
-        # 图片保存按钮
-        self.save_image_btn = QPushButton("保存轨迹图")
-        self.save_image_btn.clicked.connect(self.save_trajectory_image)
-        self.save_image_btn.setEnabled(False)  # 初始禁用，只有在有图像时才启用
-        param_layout.addWidget(self.save_image_btn)
-        
         # 结果显示
         result_group = QGroupBox("评估结果")
         result_layout = QVBoxLayout(result_group)
@@ -149,7 +159,6 @@ class VideoStabilityUI(QMainWindow):
         layout.addWidget(file_group)
         layout.addWidget(param_group)
         layout.addWidget(self.run_btn)
-        layout.addWidget(self.save_image_btn)
         layout.addWidget(result_group)
         layout.addStretch()
         
@@ -182,12 +191,13 @@ class VideoStabilityUI(QMainWindow):
         self.progress_bar.setRange(0, 0)  # 设置为不确定模式（忙碌指示器）
         self.result_text.setText("正在处理中，请稍候...")
         
+        # 获取选择的分辨率选项
+        resolution_option = self.resolution_combo.currentData()
         # 创建并启动工作线程
-        scale_factor = self.scale_spinbox.value()
         self.worker = EvaluationWorker(
             self.original_video_path, 
             self.pred_video_path, 
-            scale_factor
+            resolution_option
         )
         
         # 连接信号和槽

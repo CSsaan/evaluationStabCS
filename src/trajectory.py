@@ -2,13 +2,13 @@ from .vidstab import VidStab
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
-def gen_trajectory_data(video1_path, video2_path, scale_factor=1.0):
+def gen_trajectory_data(video1_path, video2_path, resolution_option='native'):
     # 生成两个视频的轨迹数据
-    stabilizer1 = VidStab(scale_factor=scale_factor)
+    stabilizer1 = VidStab(resolution_option=resolution_option)
     stabilizer1.gen_transforms(input_path=video1_path)
     _transforms1, trajectory1 = stabilizer1.get_transforms_trajectory() # (N, 3)
 
-    stabilizer2 = VidStab(scale_factor=scale_factor)
+    stabilizer2 = VidStab(resolution_option=resolution_option)
     stabilizer2.gen_transforms(input_path=video2_path)
     _transforms2, trajectory2 = stabilizer2.get_transforms_trajectory()
 
@@ -71,7 +71,7 @@ def plot_trajectory_data(figure, trajectory_data):
         # 设置x轴标签
         ax2_left.set_xlabel('Frame Number')
 
-        figure.suptitle('Video Trajectory Comparison (Double Y-Axis)', x=0.15, y=0.96, ha='left')
+        figure.suptitle('Video Trajectory Comparison', x=0.15, y=0.96, ha='left')
         figure.tight_layout()
 
 

@@ -51,6 +51,7 @@ your_script.py
 --output-dir=out 生成exe到out文件夹下面去
 --show-progress 显示编译的进度，很直观
 --show-memory 显示内存的占用
+--enable-plugin=pyqt6
 --enable-plugin=pyside6
 --plugin-enable=tk-inter 打包tkinter模块的刚需
 --plugin-enable=numpy 打包numpy,pandas,matplotlib模块的刚需
@@ -64,12 +65,14 @@ your_script.py
 --windows-file-description=Windows下软件的作用描述
 --windows-uac-admin=Windows下用户可以使用管理员权限来安装
 --linux-onefile-icon=Linux下的图标位置
---onefile 像pyinstaller一样打包成单个exe文件(2021年我会再出教程来解释)
+--onefile 像pyinstaller一样打包成单个exe文件
 --include-package=复制比如numpy,PyQt5 这些带文件夹的叫包或者轮子
 --include-module=复制比如when.py 这些以.py结尾的叫模块
 ```
 
+本工程打包命令：
+
 ```shell
-python -m nuitka --standalone --onefile --show-memory  --follow-imports --show-progress --follow-import-to=src --plugin-enable=numpy,matplotlib --output-dir=out  --static-libpython=no --windows-product-name="EvaluationStabCS" --windows-file-version=1.0.0 --windows-icon-from-ico=./logo.ico main.py
+python -m nuitka  --msvc=latest --standalone --onefile  --deployment --show-memory  --follow-imports --show-progress --follow-import-to=src --enable-plugin=pyqt6 --include-package=PyQt6.QtCore  --include-package=PyQt6.QtGui --include-package=PyQt6.QtWidgets  --include-package=PyQt6.sip --output-dir=out  --static-libpython=no --windows-product-name="EvaluationStabCS" --windows-file-version=1.0.0 --windows-icon-from-ico=./logo.ico main.py
 
 ```

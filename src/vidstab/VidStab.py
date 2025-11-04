@@ -64,7 +64,7 @@ class VidStab:
     :ivar transforms: a 2d numpy array storing the transformations used from frame to frame
     """
 
-    def __init__(self, kp_method='GFTT', processing_max_dim=float('inf'), scale_factor=1.0, *args, **kwargs):
+    def __init__(self, kp_method='GFTT', processing_max_dim=float('inf'), resolution_option='native', *args, **kwargs):
         """instantiate VidStab class
 
         :param kp_method: String of the type of keypoint detector to use. Available options are:
@@ -106,7 +106,7 @@ class VidStab:
         self._trajectory = []
         self.trajectory = self.smoothed_trajectory = self.transforms = None
 
-        self.frame_queue = FrameQueue(scale_factor=scale_factor)
+        self.frame_queue = FrameQueue(resolution_option=resolution_option)
         self.prev_kps = self.prev_gray = None
 
         self.writer = None

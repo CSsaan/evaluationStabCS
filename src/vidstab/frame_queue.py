@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 from .frame import Frame
 from .pop_deque import PopDeque
-
+from ..utils import get_resize_dimensions
 
 class FrameQueue:
-    def __init__(self, max_len=None, max_frames=None, scale_factor=1.0):
+    def __init__(self, max_len=None, max_frames=None, resolution_option='native'):
         self.max_len = max_len
         self.max_frames = max_frames
         self._max_frames = None
-        self.scale_factor = scale_factor
+        self.resolution_option = resolution_option
 
         self.frames = PopDeque(maxlen=max_len)
         self.inds = PopDeque(maxlen=max_len)
@@ -51,7 +51,25 @@ class FrameQueue:
         if isinstance(self.source, cv2.VideoCapture):
             self.grabbed_frame, frame = self.source.read()
             if frame is not None:
-                frame = cv2.resize(frame, (0, 0), fx=self.scale_factor, fy=self.scale_factor)
+                # 根据预设分辨率下采样
+                if self.resolution_option != 'native':
+                    # 获取目标尺寸
+                    (target_width, target_height) = get_resize_dimensions(
+                        frame.shape[1], frame.shape[0], self.resolution_option
+                    )
+                    # 调整图像大小
+                    frame = cv2.resize(frame, (target_width, target_height))
+
+                # if isinstance(self.resolution_option, str):  # 新的分辨率选项
+                #     # 获取目标尺寸
+                #     (target_width, target_height) = get_resize_dimensions(
+                #         frame.shape[1], frame.shape[0], self.resolution_option
+                #     )
+                    
+                #     # 调整图像大小
+                #     frame = cv2.resize(frame, (target_width, target_height))
+                # else:  # 传统的缩放因子
+                #     frame = cv2.resize(frame, (0, 0), fx=self.resolution_option, fy=self.resolution_option)
         else:
             frame = array
 
