@@ -285,13 +285,12 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
         ret2, img1o = cap2.read()
         if not ret1 or not ret2:
             print(f"Error reading frames:{i} or end of video reached.")
-            break
+            continue
         
         # 根据预设分辨率下采样
         # if TARGET_RESOLUTION != 'native':
         # 获取目标尺寸
         (target_width, target_height) = get_resize_dimensions(img1.shape[1], img1.shape[0], TARGET_RESOLUTION)
-        print(f'Use Resolution: {target_width}x{target_height}')
             
         # 调整图像大小
         if TARGET_RESOLUTION != 'native':
