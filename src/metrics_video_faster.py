@@ -343,9 +343,9 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
   
         # Obtain Scale, Translation, Rotation, Distortion value
         scaleRecovered = np.sqrt(M[0,1]**2 + M[0,0]**2)
-        w, _ = np.linalg.eig(M[0:2, 0:2])
-        w = np.sort(w)[::-1]
-        DV = w[1]/w[0]
+        w, _ = np.linalg.eig(M[0:2, 0:2]) # 这里对单应性矩阵M 的前2×2子矩阵进行特征值分
+        w = np.sort(w)[::-1] # 两个特征值 w[0] 和 w[1]（已排序）分别代表变换在两个正交主方向上的缩放程度
+        DV = w[1]/w[0] # 它们的比值反映了两个主方向之间缩放的不平衡程度
 	    
         CR_seq.append(1/scaleRecovered)
         DV_seq.append(DV)
@@ -405,22 +405,12 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
     
     if len(P_seq) > 0:
         # FFT
-        fft_t = np.fft.fft(P_seq_t)
-        fft_r = np.fft.fft(P_seq_r)
-        fft_t = np.abs(fft_t)**2  
-        fft_r = np.abs(fft_r)**2
+        fft_t = np.abs(np.fft.fft(P_seq_t))**2
+        fft_r = np.abs(np.fft.fft(P_seq_r))**2
 
-        # freq = np.fft.fftfreq(len(P_seq_t))
-        # plt.plot(freq, abs(fft_r)**2)
-        # plt.show()
-        # print(abs(fft_r)**2)
-        # print(freq)
-        
-        fft_t = np.delete(fft_t, 0)
-        fft_r = np.delete(fft_r, 0)
-        fft_t = fft_t[:len(fft_t)//2]
-        fft_r = fft_r[:len(fft_r)//2]
-      
+        fft_t = np.delete(fft_t, 0)[:len(fft_t)//2]
+        fft_r = np.delete(fft_r, 0)[:len(fft_r)//2]
+
         SS_t = np.sum(fft_t[:5])/np.sum(fft_t)
         SS_r = np.sum(fft_r[:5])/np.sum(fft_r)
        
@@ -438,8 +428,21 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
             平均值反映整体裁剪程度
             最小值反映最严重裁剪的帧
         '''
-        print(str.format('{0:.4f}', np.min([np.mean(CR_seq), 1])) +' ('+ str.format('{0:.4f}', np.min([np.min(CR_seq), 1])) +') ' )
-
+        CR_seq_mean_ori = np.min([np.mean(CR_seq), 1])
+        CR_seq_min_ori = np.min([np.min(CR_seq), 1])
+        # 取倒数
+        CR_seq_reciprocals = [1/x for x in CR_seq]
+        CR_seq_mean_reciprocals = np.min([np.mean(CR_seq_reciprocals), 1])
+        CR_seq_min_reciprocals = np.min([np.min(CR_seq_reciprocals), 1])
+        # 取最小值
+        if CR_seq_mean_ori <= CR_seq_mean_reciprocals:
+            CR_seq_mean = CR_seq_mean_ori
+            CR_seq_min = CR_seq_min_ori
+        else:
+            CR_seq_mean = CR_seq_mean_reciprocals
+            CR_seq_min = CR_seq_min_reciprocals
+        print('  ' + str.format('{0:.4f}', CR_seq_mean) +' ('+ str.format('{0:.4f}', CR_seq_min) +') ' )
+        
         print('Distortion value ↑ :')
         '''
         含义：
@@ -450,7 +453,7 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
             值越小表示畸变越严重
             取最小值的绝对值作为最终指标
         '''
-        print(str.format('{0:.4f}', np.absolute(np.min(DV_seq))) )
+        print('  ' + str.format('{0:.4f}', np.absolute(np.min(DV_seq))) )
 
         print('StabilityScore ↑ Avg, (Trans, Rot):')
         '''
@@ -469,12 +472,12 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
             平移和旋转分量分别反映在对应方向上的稳定性
             低频成分占比高表示变化平缓，稳定性好
         '''
-        print(str.format('{0:.4f}',  (SS_t+SS_r)/2) +' (' + str.format('{0:.4f}', SS_t) +', '+ str.format('{0:.4f}', SS_r) +') ' )
+        print('  ' + str.format('{0:.4f}',  (SS_t+SS_r)/2) +' (' + str.format('{0:.4f}', SS_t) +', '+ str.format('{0:.4f}', SS_r) +') ' )
         print('*' * 60)
 
         if len(CR_seq) > 0:
-            CR_AVG = np.min([np.mean(CR_seq), 1])
-            CR_MIN = np.min([np.min(CR_seq), 1])
+            CR_AVG = CR_seq_mean
+            CR_MIN = CR_seq_min
         else:
             CR_AVG = np.nan
             CR_MIN = np.nan
@@ -489,8 +492,8 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
 
     else:
         if len(CR_seq) > 0:
-            CR_AVG = np.min([np.mean(CR_seq), 1])
-            CR_MIN = np.min([np.min(CR_seq), 1])
+            CR_AVG = CR_seq_mean
+            CR_MIN = CR_seq_min
         else:
             CR_AVG = np.nan
             CR_MIN = np.nan

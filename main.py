@@ -1,4 +1,7 @@
+import os
 import sys
+import logging
+from datetime import datetime
 from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
@@ -48,11 +51,56 @@ class EvaluationWorker(QThread):
 class VideoStabilityUI(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setup_logging() # 设置日志记录器
         self.worker = None  # 工作线程实例
         self.trajectory_canvas = None  # 用于显示轨迹图的canvas
         self.trajectory_data = None  # 保存轨迹数据用于保存图片
         self.initUI()
         
+    def setup_logging(self):
+        """配置日志系统"""
+        self.logger = logging.getLogger('VideoStabilityEvaluator')
+        self.logger.setLevel(logging.INFO)
+        
+        # 创建文件处理器
+        log_dir = "logs"
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        log_filename = f"{log_dir}/video_evaluation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # 创建格式化器
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        
+        # 添加处理器到logger
+        self.logger.addHandler(file_handler)
+        
+        # 记录程序启动
+        self.logger.info("Video Stability Evaluator 启动")
+
+    def log_evaluation_start(self):
+        """记录评估开始"""
+        self.logger.info("="*50)
+        self.logger.info("开始新的视频评估")
+        self.logger.info(f"原始视频路径: {self.original_video_path}")
+        self.logger.info(f"稳定视频路径: {self.pred_video_path}")
+        self.logger.info(f"处理分辨率: {self.resolution_combo.currentText()}")
+
+    def log_evaluation_result(self, metrics_result):
+        """记录评估结果"""
+        CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics_result
+        self.logger.info("评估结果:")
+        self.logger.info(f"CroppingRatio(average, min): {CR_AVG_MIN[0]:.4f}, {CR_AVG_MIN[1]:.4f}")
+        self.logger.info(f"DirectionalVariation: {DVDV:.4f}")
+        self.logger.info(f"StabilityScore(average, trans, rotate): {SS_AVG_T_R[0]:.4f}, {SS_AVG_T_R[1]:.4f}, {SS_AVG_T_R[2]:.4f}")
+        self.logger.info("="*50)
+
+    def log_error(self, error_message):
+        """记录错误信息"""
+        self.logger.error(f"评估过程出错: {error_message}")
+
     def initUI(self):
         self.setWindowTitle('Video Stabilization Evaluator')
         self.setGeometry(100, 100, 1000, 600)
@@ -183,7 +231,10 @@ class VideoStabilityUI(QMainWindow):
         if not hasattr(self, 'original_video_path') or not hasattr(self, 'pred_video_path'):
             QMessageBox.warning(self, "警告", "请先选择原始视频和稳定视频文件")
             return
-            
+        
+        # 日志记录
+        self.log_evaluation_start()
+
         # 禁用运行按钮，显示进度条
         self.run_btn.setEnabled(False)
         self.save_image_btn.setEnabled(False)  # 禁用保存按钮
@@ -210,6 +261,9 @@ class VideoStabilityUI(QMainWindow):
         self.worker.start()
             
     def on_evaluation_finished(self, metrics_result, trajectory_data):
+        # 添加日志记录
+        self.log_evaluation_result(metrics_result)
+
         # 启用运行按钮，隐藏进度条
         self.run_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
@@ -239,6 +293,8 @@ class VideoStabilityUI(QMainWindow):
         QMessageBox.information(self, "完成", "视频稳定性评估已完成")
         
     def on_evaluation_error(self, error_message):
+        # 添加日志记录
+        self.log_error(error_message)
         # 启用运行按钮，隐藏进度条
         self.run_btn.setEnabled(True)
         self.progress_bar.setVisible(False)
