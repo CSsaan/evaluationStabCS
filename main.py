@@ -216,14 +216,18 @@ class VideoStabilityUI(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择原始视频", "", "Video Files (*.avi *.mp4 *.mov)")
         if file_path:
-            self.original_path_label.setText(f"原始视频: {file_path}")
+            file_name = os.path.basename(file_path)
+            self.original_path_label.setText(f"原始视频: {file_name}")
+            self.original_path_label.setToolTip(file_path)  # 鼠标悬停显示完整路径
             self.original_video_path = file_path
             
     def select_pred_video(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择稳定视频", "", "Video Files (*.avi *.mp4 *.mov)")
         if file_path:
-            self.pred_path_label.setText(f"稳定视频: {file_path}")
+            file_name = os.path.basename(file_path)
+            self.pred_path_label.setText(f"稳定视频: {file_name}")
+            self.pred_path_label.setToolTip(file_path)  # 鼠标悬停显示完整路径
             self.pred_video_path = file_path
             
     def run_evaluation(self):

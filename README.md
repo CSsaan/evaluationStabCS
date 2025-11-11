@@ -27,9 +27,6 @@ flowchart TD
     I --> L[最终结果]
     J --> L
     K --> L
-
-    <!-- classDef blackBox fill:#000000,stroke:#000000,stroke-width:2px,color:#ffffff;
-    class A,B,D,E,F,G,H,I,J,K,L blackBox; -->
 ```
 
 ## 防抖技术的性能评价指标
