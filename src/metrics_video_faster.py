@@ -428,19 +428,29 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
             平均值反映整体裁剪程度
             最小值反映最严重裁剪的帧
         '''
-        CR_seq_mean_ori = np.min([np.mean(CR_seq), 1])
-        CR_seq_min_ori = np.min([np.min(CR_seq), 1])
-        # 取倒数
+        # CR_seq_mean_ori = np.min([np.mean(CR_seq), 1])
+        # CR_seq_min_ori = np.min([np.min(CR_seq), 1])
+        # # 取倒数
+        # CR_seq_reciprocals = [1/x for x in CR_seq]
+        # CR_seq_mean_reciprocals = np.min([np.mean(CR_seq_reciprocals), 1])
+        # CR_seq_min_reciprocals = np.min([np.min(CR_seq_reciprocals), 1])
+        # # 取最小值
+        # if CR_seq_mean_ori <= CR_seq_mean_reciprocals:
+        #     CR_seq_mean = CR_seq_mean_ori
+        #     CR_seq_min = CR_seq_min_ori
+        # else:
+        #     CR_seq_mean = CR_seq_mean_reciprocals
+        #     CR_seq_min = CR_seq_min_reciprocals
+
+        # 原始 CR_seq & 取倒数 CR_seq_reciprocals
         CR_seq_reciprocals = [1/x for x in CR_seq]
-        CR_seq_mean_reciprocals = np.min([np.mean(CR_seq_reciprocals), 1])
-        CR_seq_min_reciprocals = np.min([np.min(CR_seq_reciprocals), 1])
         # 取最小值
-        if CR_seq_mean_ori <= CR_seq_mean_reciprocals:
-            CR_seq_mean = CR_seq_mean_ori
-            CR_seq_min = CR_seq_min_ori
+        if np.mean(CR_seq) <= np.mean(CR_seq_reciprocals):
+            CR_seq_mean = np.mean(CR_seq)
+            CR_seq_min = np.min(CR_seq)
         else:
-            CR_seq_mean = CR_seq_mean_reciprocals
-            CR_seq_min = CR_seq_min_reciprocals
+            CR_seq_mean = np.mean(CR_seq_reciprocals)
+            CR_seq_min = np.min(CR_seq_reciprocals)
         print('  ' + str.format('{0:.4f}', CR_seq_mean) +' ('+ str.format('{0:.4f}', CR_seq_min) +') ' )
         
         print('Distortion value ↑ :')
