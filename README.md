@@ -153,6 +153,27 @@ StabilityScore ↑ Avg, (Trans, Rot):
 
 ```shell
 python -m nuitka  --msvc=latest --standalone --onefile  --deployment --show-memory  --follow-imports --show-progress --follow-import-to=src --enable-plugin=pyqt6 --include-package=PyQt6.QtCore  --include-package=PyQt6.QtGui --include-package=PyQt6.QtWidgets  --include-package=PyQt6.sip --output-dir=out  --static-libpython=no --windows-product-name="EvaluationStabCS" --windows-file-version=1.0.0 --windows-icon-from-ico=./logo.ico main.py
+
+python -m nuitka \
+  --msvc=latest \
+  --standalone \
+  --onefile \
+  --deployment \
+  --show-memory \
+  --follow-imports \
+  --show-progress \
+  --follow-import-to=src \
+  --enable-plugin=pyqt6 \
+  --include-package=PyQt6.QtCore \
+  --include-package=PyQt6.QtGui \
+  --include-package=PyQt6.QtWidgets \
+  --include-package=PyQt6.sip \
+  --output-dir=out \
+  --static-libpython=no \
+  --windows-product-name="EvaluationStabCS" \
+  --windows-file-version=1.0.0 \
+  --windows-icon-from-ico=./logo.ico \
+  main.py
 ```
 
 ## Nuitka 打包教程

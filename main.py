@@ -237,8 +237,7 @@ class VideoStabilityUI(QMainWindow):
         """
         当滑块值改变时更新显示的标签
         """
-        self.window_size_value_label.setText(f"当前值: {value}")
-
+        self.window_size_value_label.setText(f"当前滑窗值: {value}")
     def select_original_video(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择原始视频", "", "Video Files (*.avi *.mp4 *.mov)")

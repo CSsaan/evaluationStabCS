@@ -218,10 +218,12 @@ if __name__ == "__main__":
     # )
     # plt.show()
 
-    trajectory1, trajectory2, all_transforms1, all_transforms2 = gen_trajectory_data(video1_path='../data/1.avi', video2_path='../data/result.avi', scale_factor=1.0)    
+    trajectory1, trajectory2, all_transforms1, all_transforms2 = gen_trajectory_data(video1_path='../data/1.avi', video2_path='../data/result.avi', resolution_option='native')
     trajectory_data = {
         'trajectory1': trajectory1,
-        'trajectory2': trajectory2
+        'trajectory2': trajectory2,
+        'all_transforms1': all_transforms1,
+        'all_transforms2': all_transforms2
     }
     figure = plt.figure(figsize=(8, 6)) # figure = Figure(figsize=(8, 6))
     figure = plot_trajectory_data(figure, trajectory_data)

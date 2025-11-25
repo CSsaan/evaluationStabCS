@@ -620,8 +620,13 @@ class VidStab:
         return self.transforms, self.trajectory
 
     def get_all_transforms(self):
+        """Get all raw frame-to-frame transforms
+        
+        Returns the complete list of raw transforms calculated during trajectory generation.
+        
+        :return: List of raw transforms
+        """
         return self._all_transforms
-
     def plot_transforms(self, radians=False):
         """Plot stabilizing transforms
 

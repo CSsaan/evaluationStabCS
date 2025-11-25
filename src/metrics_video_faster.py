@@ -258,10 +258,10 @@ def sliding_window_fft(data, window_length):
     
     results = []
     for i in tqdm(range(len(data) - window_length + 1), desc="Sliding Window FFT", leave=True):
-    # for i in range(len(data) - window_length + 1):
         window_data = data[i:i + window_length]
         fft_result = np.abs(np.fft.fft(window_data))**2
-        fft_result = np.delete(fft_result, 0)[:len(fft_result)//2]
+        fft_result = np.delete(fft_result, 0)
+        fft_result = fft_result[:len(fft_result)//2]
         ss = np.sum(fft_result[:5]) / np.sum(fft_result) if np.sum(fft_result) > 0 else 0
         results.append(ss)
     
@@ -282,7 +282,6 @@ def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, original_length, wind
     x_start = half_window
     x_end = len(sliding_fft_t) + half_window - 1
     x_indices = np.arange(x_start, x_end + 1)
-    # print(f"{x_start}-{x_end}, {len(sliding_fft_t)}, {original_length}") 
 
     plt.ioff()  # 关闭交互模式
     
@@ -494,8 +493,12 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
         fft_t = np.abs(np.fft.fft(P_seq_t))**2
         fft_r = np.abs(np.fft.fft(P_seq_r))**2
 
-        fft_t = np.delete(fft_t, 0)[:len(fft_t)//2]
-        fft_r = np.delete(fft_r, 0)[:len(fft_r)//2]
+        # fft_t = np.delete(fft_t, 0)[:len(fft_t)//2]
+        # fft_r = np.delete(fft_r, 0)[:len(fft_r)//2]
+        fft_t = np.delete(fft_t, 0)
+        fft_t = fft_t[:len(fft_t)//2]
+        fft_r = np.delete(fft_r, 0)
+        fft_r = fft_r[:len(fft_r)//2]
 
         SS_t = np.sum(fft_t[:5])/np.sum(fft_t)
         SS_r = np.sum(fft_r[:5])/np.sum(fft_r)
