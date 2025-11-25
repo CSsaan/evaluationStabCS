@@ -5,6 +5,8 @@ import cv2
 import math
 import pdb
 from tqdm import tqdm
+import matplotlib
+matplotlib.use('Agg')  # 使用非交互式后端
 import matplotlib.pyplot as plt
 from .utils import get_resize_dimensions
 
@@ -240,7 +242,76 @@ def metrics1(original_video, pred_video, resolution_option='native', visualize=T
     return (CR_AVG, CR_MIN), DVDV, (SS_avg, SS_t, SS_r)
 
 
-def metrics(original_video, pred_video, resolution_option='native', visualize=False):
+def sliding_window_fft(data, window_length):
+    """
+    对数据进行滑动窗口FFT计算
+    
+    参数:
+    data: 输入数据列表
+    window_length: 窗口长度
+    
+    返回:
+    包含每个窗口FFT结果的列表
+    """
+    if len(data) < window_length:
+        return []
+    
+    results = []
+    for i in tqdm(range(len(data) - window_length + 1), desc="Sliding Window FFT", leave=True):
+    # for i in range(len(data) - window_length + 1):
+        window_data = data[i:i + window_length]
+        fft_result = np.abs(np.fft.fft(window_data))**2
+        fft_result = np.delete(fft_result, 0)[:len(fft_result)//2]
+        ss = np.sum(fft_result[:5]) / np.sum(fft_result) if np.sum(fft_result) > 0 else 0
+        results.append(ss)
+    
+    return results
+
+def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, original_length, window_length):
+    """
+    绘制滑动窗口FFT结果，横坐标从window_length位置开始
+    
+    参数:
+    sliding_fft_t: 平移分量的滑动窗口FFT结果
+    sliding_fft_r: 旋转分量的滑动窗口FFT结果
+    original_length: 原始数据长度
+    window_length: 窗口长度
+    """
+    # 创建横坐标轴，从window_length开始
+    half_window = window_length // 2  # 创建横坐标轴，表示滑动窗口的中心位置
+    x_start = half_window
+    x_end = len(sliding_fft_t) + half_window - 1
+    x_indices = np.arange(x_start, x_end + 1)
+    # print(f"{x_start}-{x_end}, {len(sliding_fft_t)}, {original_length}") 
+
+    plt.ioff()  # 关闭交互模式
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # 绘制平移分量的滑动窗口FFT结果
+    ax1.plot(x_indices, sliding_fft_t, 'b-', linewidth=1.5, marker='o', markersize=3)
+    ax1.set_title(f'Translation Stability Score (Window Length: {window_length})')
+    ax1.set_xlabel('Frame Index (Window Center)')
+    ax1.set_ylabel('Stability Score')
+    ax1.grid(True, alpha=0.3)
+    # 设置x轴范围与原始数据长度一致
+    ax1.set_xlim(0, original_length-1)
+    
+    # 绘制旋转分量的滑动窗口FFT结果
+    ax2.plot(x_indices, sliding_fft_r, 'r-', linewidth=1.5, marker='o', markersize=3)
+    ax2.set_title(f'Rotation Stability Score (Window Length: {window_length})')
+    ax2.set_xlabel('Frame Index (Window Center)')
+    ax2.set_ylabel('Stability Score')
+    ax2.grid(True, alpha=0.3)
+    # 设置x轴范围与原始数据长度一致
+    ax2.set_xlim(0, original_length-1)
+    
+    plt.tight_layout()
+    # 保存图片，名称添加时间
+    plt.savefig(f'logs/sliding_window_fft_{window_length}.png')
+    plt.close() 
+
+def metrics(original_video, pred_video, window_size=30 ,resolution_option='native', visualize=False):
     # 打开视频文件
     cap1 = cv2.VideoCapture(original_video)
     cap2 = cv2.VideoCapture(pred_video)
@@ -404,6 +475,21 @@ def metrics(original_video, pred_video, resolution_option='native', visualize=Fa
         P_seq_r.append(thetaRecovered)
     
     if len(P_seq) > 0:
+        all_size = [15, 20, 30, 50, 80, 110, 150] if window_size == 15 else [window_size]
+        for size in all_size:
+            # 滑动窗口参数
+            window_length = min(size, len(P_seq_t))  # 默认窗口长度为30 
+            # 使用滑动窗口计算FFT
+            if len(P_seq_t) >= window_length:
+                sliding_fft_t = sliding_window_fft(P_seq_t, window_length)
+                sliding_fft_r = sliding_window_fft(P_seq_r, window_length)
+                # 将两个FFT结果绘制在图像中
+                plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, len(P_seq_t), window_length)
+            else:
+                # 报错
+                print("Error: Failed to plot, Because the length of P_seq_t is less than window_length.")
+
+
         # FFT
         fft_t = np.abs(np.fft.fft(P_seq_t))**2
         fft_r = np.abs(np.fft.fft(P_seq_r))**2

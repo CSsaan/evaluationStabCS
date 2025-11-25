@@ -6,7 +6,7 @@ from PyQt6.QtGui import QPalette
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QFileDialog, QDoubleSpinBox, QGroupBox, QTextEdit, QMessageBox, QProgressBar, 
-                             QComboBox)
+                             QComboBox, QSlider)
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -19,11 +19,12 @@ class EvaluationWorker(QThread):
     finished = pyqtSignal(object, object)  # (metrics_result, trajectory_data)
     error = pyqtSignal(str)  # 错误信息
     
-    def __init__(self, original_video_path, pred_video_path, resolution_option):
+    def __init__(self, original_video_path, pred_video_path, resolution_option, window_size=30):
         super().__init__()
         self.original_video_path = original_video_path
         self.pred_video_path = pred_video_path
         self.resolution_option = resolution_option
+        self.window_size = window_size
     
     def run(self):
         try:
@@ -31,14 +32,16 @@ class EvaluationWorker(QThread):
             from src.trajectory import gen_trajectory_data
             
             # 执行评估
-            CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(self.original_video_path, self.pred_video_path, resolution_option=self.resolution_option, visualize=True)
+            CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(self.original_video_path, self.pred_video_path, window_size=self.window_size, resolution_option=self.resolution_option, visualize=True)
             # 生成轨迹
-            trajectory1, trajectory2 = gen_trajectory_data(self.original_video_path, self.pred_video_path, self.resolution_option)
+            trajectory1, trajectory2, all_transforms1, all_transforms2 = gen_trajectory_data(self.original_video_path, self.pred_video_path, self.resolution_option)
             
             # 将轨迹数据发送到主线程，让主线程负责绘图
             trajectory_data = {
                 'trajectory1': trajectory1,
-                'trajectory2': trajectory2
+                'trajectory2': trajectory2,
+                'all_transforms1': all_transforms1,
+                'all_transforms2': all_transforms2
             }
             
             # 发送结果到主线程
@@ -187,6 +190,24 @@ class VideoStabilityUI(QMainWindow):
         scale_layout.addWidget(self.resolution_combo)
         param_layout.addLayout(scale_layout)
         
+         # 窗口大小设置
+        window_size_layout = QVBoxLayout()
+        window_size_label = QLabel("FFT滑动窗口大小:")
+        window_size_layout.addWidget(window_size_label)
+        # 滑块设置
+        self.window_size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.window_size_slider.setMinimum(15)
+        self.window_size_slider.setMaximum(100)
+        self.window_size_slider.setValue(30)  # 默认值
+        # self.window_size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.window_size_slider.setTickInterval(5)
+        self.window_size_slider.valueChanged.connect(self.on_window_size_changed)
+        window_size_layout.addWidget(self.window_size_slider)
+        # 显示当前窗口大小值
+        self.window_size_value_label = QLabel(f"当前滑窗值: {self.window_size_slider.value()}")
+        window_size_layout.addWidget(self.window_size_value_label)
+        param_layout.addLayout(window_size_layout)
+
         # 进度条
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -211,7 +232,13 @@ class VideoStabilityUI(QMainWindow):
         layout.addStretch()
         
         return panel
-        
+    
+    def on_window_size_changed(self, value):
+        """
+        当滑块值改变时更新显示的标签
+        """
+        self.window_size_value_label.setText(f"当前值: {value}")
+
     def select_original_video(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择原始视频", "", "Video Files (*.avi *.mp4 *.mov)")
@@ -246,13 +273,16 @@ class VideoStabilityUI(QMainWindow):
         self.progress_bar.setRange(0, 0)  # 设置为不确定模式（忙碌指示器）
         self.result_text.setText("正在处理中，请稍候...")
         
-        # 获取选择的分辨率选项
+        # 获取选择的分辨率选项和窗口大小
         resolution_option = self.resolution_combo.currentData()
+        window_size = self.window_size_slider.value()  # 获取滑块值
+
         # 创建并启动工作线程
         self.worker = EvaluationWorker(
             self.original_video_path, 
             self.pred_video_path, 
-            resolution_option
+            resolution_option,
+            window_size
         )
         
         # 连接信号和槽

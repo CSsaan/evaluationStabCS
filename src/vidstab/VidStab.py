@@ -104,6 +104,7 @@ class VidStab:
         self._smoothing_window = 30
         self._raw_transforms = []
         self._trajectory = []
+        self._all_transforms = []
         self.trajectory = self.smoothed_trajectory = self.transforms = None
 
         self.frame_queue = FrameQueue(resolution_option=resolution_option)
@@ -155,6 +156,7 @@ class VidStab:
         else:
             # gen cumsum for new row and append
             self._trajectory.append([self._trajectory[-1][j] + x for j, x in enumerate(transform)])
+            self._all_transforms.append(transform[:])
 
     def _gen_next_raw_transform(self):
         current_frame = self.frame_queue.frames[-1]
@@ -616,6 +618,9 @@ class VidStab:
     
     def get_transforms_trajectory(self):
         return self.transforms, self.trajectory
+
+    def get_all_transforms(self):
+        return self._all_transforms
 
     def plot_transforms(self, radians=False):
         """Plot stabilizing transforms
