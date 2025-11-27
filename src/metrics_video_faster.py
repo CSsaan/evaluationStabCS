@@ -1,9 +1,7 @@
-import os
-import sys
-import numpy as np
+
 import cv2
-import math
-import pdb
+import csv
+import numpy as np
 from tqdm import tqdm
 import matplotlib
 matplotlib.use('Agg')  # 使用非交互式后端
@@ -66,6 +64,9 @@ def metrics1(original_video, pred_video, resolution_option='native', visualize=T
         img1 = imgs1[i]
         img1o = imgs1o[i]
 
+        img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        img1o = cv2.cvtColor(img1o, cv2.COLOR_BGR2GRAY)
+
         # Detect the SIFT key points and compute the descriptors for the two images
         keyPoints1, descriptors1 = sift.detectAndCompute(img1, None)
         keyPoints1o, descriptors1o = sift.detectAndCompute(img1o, None)
@@ -123,6 +124,7 @@ def metrics1(original_video, pred_video, resolution_option='native', visualize=T
             if i + 1 < len(imgs1):
                 img2o = imgs1o[i + 1]
 
+                img2o = cv2.cvtColor(img2o, cv2.COLOR_BGR2GRAY)
                 keyPoints2o, descriptors2o = sift.detectAndCompute(img2o, None)
                 matches = bf.knnMatch(descriptors1o, descriptors2o, k=2)
                 goodMatches = []
@@ -257,7 +259,8 @@ def sliding_window_fft(data, window_length):
         return []
     
     results = []
-    for i in tqdm(range(len(data) - window_length + 1), desc="Sliding Window FFT", leave=True):
+    # for i in tqdm(range(len(data) - window_length + 1), desc="Sliding Window FFT", leave=True):
+    for i in range(len(data) - window_length + 1):
         window_data = data[i:i + window_length]
         fft_result = np.abs(np.fft.fft(window_data))**2
         fft_result = np.delete(fft_result, 0)
@@ -267,13 +270,14 @@ def sliding_window_fft(data, window_length):
     
     return results
 
-def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, original_length, window_length):
+def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, sliding_fft_p, original_length, window_length):
     """
     绘制滑动窗口FFT结果，横坐标从window_length位置开始
     
     参数:
     sliding_fft_t: 平移分量的滑动窗口FFT结果
     sliding_fft_r: 旋转分量的滑动窗口FFT结果
+    sliding_fft_p: 透视分量的滑动窗口FFT结果
     original_length: 原始数据长度
     window_length: 窗口长度
     """
@@ -283,9 +287,9 @@ def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, original_length, wind
     x_end = len(sliding_fft_t) + half_window - 1
     x_indices = np.arange(x_start, x_end + 1)
 
-    plt.ioff()  # 关闭交互模式
+    plt.ioff()  # 多线程中，关闭交互模式
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 12))
     
     # 绘制平移分量的滑动窗口FFT结果
     ax1.plot(x_indices, sliding_fft_t, 'b-', linewidth=1.5, marker='o', markersize=3)
@@ -305,10 +309,33 @@ def plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, original_length, wind
     # 设置x轴范围与原始数据长度一致
     ax2.set_xlim(0, original_length-1)
     
+    # 绘制透视分量的滑动窗口FFT结果
+    ax3.plot(x_indices, sliding_fft_p, 'g-', linewidth=1.5, marker='o', markersize=3)
+    ax3.set_title(f'Perspective Stability Score (Window Length: {window_length})')
+    ax3.set_xlabel('Frame Index (Window Center)')
+    ax3.set_ylabel('Stability Score')
+    ax3.grid(True, alpha=0.3)
+    ax3.set_xlim(0, original_length-1)
+    
     plt.tight_layout()
     # 保存图片，名称添加时间
     plt.savefig(f'logs/sliding_window_fft_{window_length}.png')
     plt.close() 
+
+    # # 保存所有数据到一个.npz压缩文件
+    # np.savez(f'logs/sliding_fft_data_window_{window_length}.npz', 
+    #          x_indices=x_indices,
+    #          sliding_fft_t=sliding_fft_t,
+    #          sliding_fft_r=sliding_fft_r)
+    # print(f"Data saved to logs/sliding_fft_data_window_{window_length}.npz")
+    # 保存所有数据到CSV文件
+    with open(f'logs/sliding_fft_data_window_{window_length}.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['Frame_Index', 'Translation_Stability_Score', 'Rotation_Stability_Score', 'Perspective_Stability_Score'])
+        for i in range(len(x_indices)):
+            writer.writerow([x_indices[i], sliding_fft_t[i], sliding_fft_r[i], sliding_fft_p[i]])
+    
+    print(f"Data saved to logs/sliding_fft_data_window_{window_length}.csv")
 
 def metrics(original_video, pred_video, window_size=30 ,resolution_option='native', visualize=False):
     # 打开视频文件
@@ -321,9 +348,9 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
 
     # 使用SIFT特征检测
     try:
-        sift = cv2.SIFT_create(nfeatures=500) # 新版本OpenCV (4.5.0以后) - SIFT已移至主模块 nfeatures=1000
+        sift = cv2.SIFT_create() # 新版本OpenCV (4.5.0以后) - SIFT已移至主模块 nfeatures=1000
     except AttributeError:
-        sift = cv2.xfeatures2d.SIFT_create(nfeatures=500) # 旧版本OpenCV - 使用contrib模块 nfeatures=1000
+        sift = cv2.xfeatures2d.SIFT_create() # 旧版本OpenCV - 使用contrib模块 nfeatures=1000
         
     # Create brute-force matcher object
     bf = cv2.BFMatcher()
@@ -447,8 +474,8 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
                 # Obtain the homography matrix
                 M, _ = cv2.findHomography(sourcePoints, destinationPoints, method=cv2.RANSAC, ransacReprojThreshold=thresh)
                 # M, _ = cv2.estimateAffine2D(sourcePoints, destinationPoints, method=cv2.RANSAC, ransacReprojThreshold=thresh)
-            else:
-                continue
+            # else:
+            #     continue
 		    
             P_seq.append(np.matmul(Pt, M))
             Pt = np.matmul(Pt, M)
@@ -464,17 +491,22 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
         cv2.destroyAllWindows()
     
     # Make 1D temporal signals
-    P_seq_t = []
-    P_seq_r = []
+    P_seq_t = [] # 平移
+    P_seq_r = [] # 旋转
+    P_seq_p = [] # 透视
     
     for Mp in P_seq:
         transRecovered = np.sqrt(Mp[0, 2]**2 + Mp[1, 2]**2)
         thetaRecovered = np.arctan2(Mp[1, 0], Mp[0, 0]) * 180 / np.pi
+        perspectiveRecovered = np.sqrt(Mp[2, 0]**2 + Mp[2, 1]**2)
         P_seq_t.append(transRecovered)
         P_seq_r.append(thetaRecovered)
+        P_seq_p.append(perspectiveRecovered)
     
     if len(P_seq) > 0:
-        all_size = [15, 20, 30, 50, 80, 110, 150] if window_size == 15 else [window_size]
+        all_size = [15, 20, 30, 50, 80, 110, 150]
+        if window_size not in all_size:
+            all_size.append(window_size)
         for size in all_size:
             # 滑动窗口参数
             window_length = min(size, len(P_seq_t))  # 默认窗口长度为30 
@@ -482,10 +514,10 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
             if len(P_seq_t) >= window_length:
                 sliding_fft_t = sliding_window_fft(P_seq_t, window_length)
                 sliding_fft_r = sliding_window_fft(P_seq_r, window_length)
+                sliding_fft_p = sliding_window_fft(P_seq_p, window_length)
                 # 将两个FFT结果绘制在图像中
-                plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, len(P_seq_t), window_length)
+                plot_sliding_fft_results(sliding_fft_t, sliding_fft_r, sliding_fft_p, len(P_seq_t), window_length)
             else:
-                # 报错
                 print("Error: Failed to plot, Because the length of P_seq_t is less than window_length.")
 
 
@@ -535,10 +567,10 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
         CR_seq_reciprocals = [1/x for x in CR_seq]
         # 取最小值
         if np.mean(CR_seq) <= np.mean(CR_seq_reciprocals):
-            CR_seq_mean = np.mean(CR_seq)
+            CR_seq_mean = np.min([np.mean(CR_seq), 1])
             CR_seq_min = np.min(CR_seq)
         else:
-            CR_seq_mean = np.mean(CR_seq_reciprocals)
+            CR_seq_mean = np.min([np.mean(CR_seq_reciprocals), 1])
             CR_seq_min = np.min(CR_seq_reciprocals)
         print('  ' + str.format('{0:.4f}', CR_seq_mean) +' ('+ str.format('{0:.4f}', CR_seq_min) +') ' )
         
@@ -604,20 +636,9 @@ def metrics(original_video, pred_video, window_size=30 ,resolution_option='nativ
 
 
 if __name__ == '__main__':
-    CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(original_video='../../data/1.avi', pred_video='../../data/result.avi', resolution_option='native', visualize=True)
+    CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics(original_video=r"D:\Users\74055\Desktop\compare-stability\20251110_153808_158\VID_20251110_153808_158.mp4", pred_video=r"D:\Users\74055\Desktop\compare-stability\20251110_153808_158\VID_20251110_153808_158_stabilized_50H.mp4", window_size=30, resolution_option='480p', visualize=True)
+    # CR_AVG_MIN, DVDV, SS_AVG_T_R = metrics1(original_video=r"D:\Users\74055\Desktop\compare-stability\20251110_153808_158\VID_20251110_153808_158.mp4", pred_video=r"D:\Users\74055\Desktop\compare-stability\20251110_153808_158\VID_20251110_153808_158_stabilized_50H.mp4", resolution_option='480p', visualize=False)
     print(f"CroppingRatio(average, min)↑: {CR_AVG_MIN[0]}, {CR_AVG_MIN[1]}")
     print(f"DirectionalVariation↑: {DVDV}")
     print(f"StabilityScore(average, trans, rotate)↑: {SS_AVG_T_R[0]}, {SS_AVG_T_R[1]}, {SS_AVG_T_R[2]}")
 
-
-'''
-************************************************************
-Cropping ratio ↑ Avg, (Min):
-1.0000 (1.0000)
-Distortion value ↑ :
-0.8746
-StabilityScore ↑ Avg, (Trans, Rot):
-0.6933 (0.6540, 0.7325/0.8744)
-************************************************************
-(np.float64(1.0), np.float64(0.8731453968997918), np.float64(0.7008247105517187))
-'''
